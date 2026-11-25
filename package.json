@@ -1,0 +1,32 @@
+{
+  "name": "steel-takeoff",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "鋼構算量：網頁版鋼結構建模算量程式（操作對照 Tekla Structures）",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && tsc --noEmit -p tests && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
+  },
+  "dependencies": {
+    "@mlightcad/libredwg-web": "^0.9.4",
+    "@preact/signals": "^2.11.4",
+    "exceljs": "^4.4.0",
+    "idb-keyval": "^6.3.0",
+    "pdfjs-dist": "^6.5.438",
+    "preact": "^11.2.0",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^24.19.4",
+    "@types/three": "^0.187.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.2"
+  }
+}
