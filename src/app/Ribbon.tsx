@@ -7,6 +7,7 @@ import { syncViews } from '../model/ops';
 import { app } from './core';
 import { Icon } from './Icons';
 import { ui, toast, type ToolId } from './ui';
+import { installApp, pwa } from './pwa';
 import { exportCsv, exportExcel, openPrint, runNumbering } from '../report/actions';
 import { newProjectFlow, openFileFlow, saveFileFlow, loadSampleFlow } from './projectFlows';
 import { importDrawingFlow } from './drawingFlows';
@@ -76,6 +77,7 @@ function FileMenu(props: { onClose: () => void }) {
       <button onClick={run(loadSampleFlow)}>載入範例專案</button>
       <hr />
       <button onClick={run(() => (ui.dialog.value = 'help'))}>操作說明與快捷鍵</button>
+      {!pwa.standalone.value && <button onClick={run(() => void installApp())}>安裝為應用程式…</button>}
     </div>
   );
 }
@@ -115,6 +117,11 @@ export function Ribbon() {
           </button>
         ))}
         <div class="spacer" />
+        {!pwa.standalone.value && (
+          <button class="ribbon-tab install-btn" title="安裝成應用程式：自己的視窗與圖示，離線也能用" onClick={() => void installApp()}>
+            ⤓ 安裝
+          </button>
+        )}
         <span class="proj-name" title="專案名稱">
           {p.name}
         </span>

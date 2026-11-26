@@ -189,3 +189,35 @@ export function HelpDialog() {
     </Modal>
   );
 }
+
+/** 安裝成應用程式的說明（瀏覽器沒有一鍵安裝時顯示） */
+export function InstallDialog() {
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const safari = /Safari/.test(ua) && !/Chrome|Chromium|Edg|CriOS|FxiOS/.test(ua);
+  const firefox = /Firefox|FxiOS/.test(ua);
+  return (
+    <Modal title="安裝為應用程式" onClose={close} width={520} footer={<button onClick={close}>關閉</button>}>
+      <p style={{ marginTop: 0, lineHeight: 1.7 }}>
+        安裝後會有自己的圖示與視窗（沒有網址列），而且<b>離線也能使用</b>。專案仍存在這台電腦的瀏覽器資料裡，與網頁版共用。
+      </p>
+      <ol style={{ lineHeight: 1.9, paddingLeft: 20, margin: 0 }}>
+        {ios ? (
+          <li>iPhone／iPad 的 Safari：點下方「分享」按鈕 →「加入主畫面」。</li>
+        ) : safari ? (
+          <li>Mac 的 Safari：選單列「檔案」→「加入 Dock」。</li>
+        ) : firefox ? (
+          <li>Firefox 不支援安裝網頁應用程式，請改用 Chrome、Edge 或 Safari 開啟本頁。</li>
+        ) : (
+          <>
+            <li>Chrome／Edge：網址列右側的「安裝」圖示（電腦螢幕加箭頭），或選單 →「投放、儲存及分享」→「安裝網頁應用程式」。</li>
+            <li>若已安裝過，選單裡會改成「開啟『鋼構算量』」。</li>
+          </>
+        )}
+      </ol>
+      <p class="hint" style={{ marginTop: 12, lineHeight: 1.7 }}>
+        Chrome／Edge 安裝後，可在檔案總管或 Finder 對 .sqp、.dwg、.dxf、.pdf 按右鍵 →「打開方式」選「鋼構算量」直接開啟。
+      </p>
+    </Modal>
+  );
+}

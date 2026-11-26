@@ -1,0 +1,30 @@
+{
+  "id": "./",
+  "name": "鋼構算量",
+  "short_name": "鋼構算量",
+  "description": "網頁版鋼結構建模算量程式（操作對照 Tekla Structures）",
+  "lang": "zh-Hant-TW",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f8",
+  "theme_color": "#2b3a4a",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "launch_handler": { "client_mode": "focus-existing" },
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "application/x-steel-takeoff-project": [".sqp"],
+        "image/vnd.dwg": [".dwg"],
+        "image/vnd.dxf": [".dxf"],
+        "application/pdf": [".pdf"]
+      }
+    }
+  ]
+}

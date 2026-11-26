@@ -2,10 +2,11 @@ import { Browser } from './Browser';
 import { DrawingSettings, ImportDialog } from './dialogs/DrawingDialogs';
 import { RecogHost } from './dialogs/RecognizeDialogs';
 import { ArrayDialog, DuplicatesDialog } from './dialogs/EditDialogs';
-import { importDrawingFlow, importState } from './drawingFlows';
+import { importState } from './drawingFlows';
+import { applyUpdate, openAnyFile, pwa } from './pwa';
 import { GridDialog } from './dialogs/GridDialog';
 import { LevelDialog } from './dialogs/LevelDialog';
-import { HelpDialog, InfoDialog, ProjectsDialog } from './dialogs/MiscDialogs';
+import { HelpDialog, InfoDialog, InstallDialog, ProjectsDialog } from './dialogs/MiscDialogs';
 import { ProfileBrowserHost } from './dialogs/ProfileBrowser';
 import { ReportDialog } from './dialogs/ReportDialog';
 import { PropertyPanel } from './PropertyPanel';
@@ -27,6 +28,7 @@ function Dialogs() {
   if (d.startsWith('drawing:')) return <DrawingSettings key={d} id={d.slice(8)} />;
   if (d === 'array') return <ArrayDialog />;
   if (d === 'dups') return <DuplicatesDialog />;
+  if (d === 'install') return <InstallDialog />;
   return null;
 }
 
@@ -41,7 +43,7 @@ export function App() {
         const f = e.dataTransfer?.files?.[0];
         if (!f) return;
         e.preventDefault();
-        if (/\.(dxf|dwg|pdf)$/i.test(f.name)) void importDrawingFlow(f);
+        void openAnyFile(f);
       }}
     >
       <Ribbon />
@@ -56,6 +58,15 @@ export function App() {
       <ProfileBrowserHost />
       {importState.value && <ImportDialog key={`${importState.value.file.name}|${importState.value.file.lastModified}|${importState.value.file.size}`} />}
       {ui.toast.value && <div class="toast">{ui.toast.value}</div>}
+      {pwa.updateReady.value && (
+        <div class="update-bar">
+          已下載新版本
+          <button class="primary" onClick={applyUpdate}>
+            重新整理以更新
+          </button>
+          <button onClick={() => (pwa.updateReady.value = false)}>稍後</button>
+        </div>
+      )}
     </div>
   );
 }

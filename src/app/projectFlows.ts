@@ -33,7 +33,11 @@ export function loadSampleFlow() {
 
 export async function openFileFlow() {
   const f = await pickFile('.sqp,.json,application/json');
-  if (!f) return;
+  if (f) await openProjectFile(f);
+}
+
+/** 開啟專案檔（選檔、拖放、或從桌面以本程式開啟 .sqp） */
+export async function openProjectFile(f: File) {
   try {
     const p = await blobToProject(f);
     openProject(p);

@@ -6,6 +6,16 @@
 
 線上版：<https://catop16-bot.github.io/steel-takeoff/>（推到 `main` 後由 GitHub Actions 自動測試、建置並部署）
 
+### 安裝成應用程式
+
+線上版可以安裝成應用程式（PWA）：有自己的圖示與視窗，第一次開啟後會把整個程式（含 DWG／PDF 解析元件）存在電腦上，離線也能用。
+
+- Chrome／Edge：按功能區右上角「⤓ 安裝」，或網址列右側的安裝圖示。安裝後可對 .sqp／.dwg／.dxf／.pdf 按右鍵用「鋼構算量」開啟。
+- Mac 的 Safari：「檔案」→「加入 Dock」。iPhone／iPad：「分享」→「加入主畫面」。
+- 有新版時右下角會提示「重新整理以更新」。
+
+圖示由 `node scripts/make-icons.mjs` 產生（`public/icons/`）；離線快取清單在建置時由 `vite.config.ts` 寫進 `dist/sw.js`。
+
 ## 開發
 
 Node 安裝在 `~/.local/node/bin`：
