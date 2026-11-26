@@ -1462,6 +1462,29 @@ button.danger {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* 依視窗寬度決定欄數 */
+  container-type: inline-size;
+}
+
+/* 左欄：零件屬性；右欄：位置、端部偏移、座標。視窗太窄時上下排 */
+.prop-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 18px;
+  align-items: start;
+}
+
+@container (max-width: 560px) {
+  .prop-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 寬視窗時數量表排成兩對欄，省高度 */
+@container (min-width: 561px) {
+  .prop-win .qty {
+    grid-template-columns: auto 1fr auto 1fr;
+  }
 }
 
 /* 左側欄的數量統計 */

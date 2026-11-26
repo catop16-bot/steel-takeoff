@@ -20,9 +20,14 @@ export interface ChromeState {
   /** 工具列內容縮放比例 */
   ribbonScale: number;
   ribbonOpen: boolean;
+  /** 設定格式版本（2：屬性視窗改成左右兩欄，預設較寬） */
+  v: number;
 }
 
-export const CHROME_DEFAULTS: ChromeState = { left: 230, leftOpen: true, prop: null, ribbonScale: 1, ribbonOpen: true };
+export const CHROME_DEFAULTS: ChromeState = { left: 230, leftOpen: true, prop: null, ribbonScale: 1, ribbonOpen: true, v: 2 };
+/** 屬性視窗預設大小（左右兩欄） */
+const PROP_W = 660;
+const PROP_H = 600;
 export const LIMITS = {
   left: [160, 560] as const,
   /** 屬性視窗最小寬高 */
@@ -44,13 +49,16 @@ function load(): ChromeState {
     const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
     const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
     const r = s.prop;
-    const prop = r && typeof r === 'object' && [r.x, r.y, r.w, r.h].every((v) => typeof v === 'number' && Number.isFinite(v)) ? { x: r.x, y: r.y, w: r.w, h: r.h } : null;
+    let prop = r && typeof r === 'object' && [r.x, r.y, r.w, r.h].every((v) => typeof v === 'number' && Number.isFinite(v)) ? { x: r.x, y: r.y, w: r.w, h: r.h } : null;
+    // 舊版存的是單欄寬度，改成兩欄後放寬一次（往左挪，右緣不動）
+    if (prop && num(s.v, 1) < 2 && prop.w < 600) prop = { ...prop, x: Math.max(8, prop.x - (PROP_W - prop.w)), w: PROP_W };
     return {
       left: clamp(num(s.left, CHROME_DEFAULTS.left), LIMITS.left),
       leftOpen: bool(s.leftOpen, true),
       prop,
       ribbonScale: clamp(num(s.ribbonScale, 1), LIMITS.ribbonScale),
       ribbonOpen: bool(s.ribbonOpen, true),
+      v: 2,
     };
   } catch {
     return { ...CHROME_DEFAULTS };
@@ -93,7 +101,7 @@ export function toggleLeft() {
 export function propRect(): Rect {
   const W = window.innerWidth;
   const H = window.innerHeight;
-  const r = chrome.peek().prop ?? { x: W - 336, y: 130, w: 320, h: Math.min(640, H - 170) };
+  const r = chrome.peek().prop ?? { x: W - PROP_W - 16, y: 130, w: PROP_W, h: Math.min(PROP_H, H - 170) };
   const w = Math.min(Math.max(r.w, LIMITS.propMin[0]), W - 16);
   const h = Math.min(Math.max(r.h, LIMITS.propMin[1]), H - 16);
   // 至少留標題列在畫面內，才拖得回來

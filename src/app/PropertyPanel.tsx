@@ -126,8 +126,10 @@ function ClassPick(props: { f: Form; set: (k: string, v: string) => void }) {
   );
 }
 
-/** 共用欄位 */
-function CommonFields(props: { f: Form; set: (k: string, v: string) => void; dirty: Set<string>; plate: boolean; linear: boolean }) {
+type FieldProps = { f: Form; set: (k: string, v: string) => void; dirty: Set<string>; plate: boolean; linear: boolean };
+
+/** 零件屬性：名稱、斷面、材質、類別、編號前綴 */
+function PartFields(props: FieldProps) {
   const { f, set, dirty } = props;
   const prof = f.profile;
   const bad = prof && prof !== MIXED ? !parseProfile(prof).ok : false;
@@ -156,6 +158,15 @@ function CommonFields(props: { f: Form; set: (k: string, v: string) => void; dir
       <Row label="編號前綴" dirty={dirty.has('prefix')}>
         <Txt k="prefix" f={f} set={set} />
       </Row>
+    </>
+  );
+}
+
+/** 位置：平面上、旋轉、深度 */
+function PositionFields(props: FieldProps) {
+  const { f, set, dirty } = props;
+  return (
+    <>
       <h4>位置</h4>
       {props.linear && (
         <>
@@ -225,7 +236,12 @@ function ToolDefaults(props: { type: ToolKey }) {
         {MEMBER_TYPE_LABEL[props.type]}的預設屬性
       </h3>
       <div class="hint">之後新建的{MEMBER_TYPE_LABEL[props.type]}使用這些設定（相當於 Tekla 屬性對話框）。</div>
-      <CommonFields f={f} set={set} dirty={new Set()} plate={props.type === 'plate'} linear={props.type !== 'plate'} />
+      <div class="prop-cols">
+        <div class="prop-col">
+          <PartFields f={f} set={set} dirty={new Set()} plate={props.type === 'plate'} linear={props.type !== 'plate'} />
+        </div>
+        <div class="prop-col">
+          <PositionFields f={f} set={set} dirty={new Set()} plate={props.type === 'plate'} linear={props.type !== 'plate'} />
       {props.type === 'column' && (
         <>
           <h4>高程</h4>
@@ -244,6 +260,8 @@ function ToolDefaults(props: { type: ToolKey }) {
           <div class="hint">後方欄位為相對樓層的偏移（mm），例如柱頂到梁底可填 −588。</div>
         </>
       )}
+        </div>
+      </div>
       <ToolTips type={props.type} />
     </div>
   );
@@ -336,7 +354,12 @@ function Selection(props: { ids: ReadonlySet<string> }) {
         {single?.mark && <span class="chip on">{single.mark}</span>}
       </h3>
       {!single && <div class="hint">類型：{[...types].map((t) => MEMBER_TYPE_LABEL[t]).join('、')}。只會套用有改動（藍字）的欄位。</div>}
-      <CommonFields f={f} set={set} dirty={dirty} plate={plate} linear={linear} />
+      <div class="prop-cols">
+        <div class="prop-col">
+          <PartFields f={f} set={set} dirty={dirty} plate={plate} linear={linear} />
+        </div>
+        <div class="prop-col">
+          <PositionFields f={f} set={set} dirty={dirty} plate={plate} linear={linear} />
       {linear && (
         <>
           <h4>端部偏移（Dx Dy Dz）</h4>
@@ -376,6 +399,8 @@ function Selection(props: { ids: ReadonlySet<string> }) {
           </Row>
         </>
       )}
+        </div>
+      </div>
       <div class="actions">
         <button class="primary" disabled={!dirty.size} onClick={apply}>
           修改
