@@ -8,6 +8,8 @@ import { targetLabel } from '../drawing/placement';
 import { importDrawingFlow } from './drawingFlows';
 import { sortedViews } from '../model/ops';
 import { ui } from './ui';
+import { Overview } from './PropertyPanel';
+import { openProps } from './propWindow';
 
 function Section(props: { title: string; extra?: JSX.Element; open?: boolean; children: JSX.Element | JSX.Element[] | null }) {
   const open = useSignal(props.open ?? true);
@@ -53,6 +55,9 @@ export function Browser() {
   );
   return (
     <div class="side">
+      <Section title="數量統計">
+        <Overview />
+      </Section>
       <Section title="軸線" extra={<button onClick={() => (ui.dialog.value = 'grid')}>編輯</button>}>
         {p.grids.length ? (
           p.grids.map((g) => (
@@ -115,7 +120,7 @@ export function Browser() {
               const all = [...lm.values()].flat();
               return (
                 <div key={l?.id ?? 'none'}>
-                  <div class="tree-item" onClick={(e) => selectIds(all, e)}>
+                  <div class="tree-item" onClick={(e) => selectIds(all, e)} onDblClick={() => (store.select(all), openProps())} title="雙擊開啟屬性">
                     {l?.name ?? '（未分層）'}
                     <span class="meta">{all.length}</span>
                   </div>
@@ -123,7 +128,7 @@ export function Browser() {
                     const ids = lm.get(t)!;
                     const on = ids.every((id) => sel.has(id));
                     return (
-                      <div key={t} class={`tree-item tree-sub${on ? ' on' : ''}`} onClick={(e) => selectIds(ids, e)}>
+                      <div key={t} class={`tree-item tree-sub${on ? ' on' : ''}`} onClick={(e) => selectIds(ids, e)} onDblClick={() => (store.select(ids), openProps())} title="雙擊開啟屬性">
                         {MEMBER_TYPE_LABEL[t]}
                         <span class="meta">{ids.length}</span>
                       </div>

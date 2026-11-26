@@ -11,7 +11,7 @@ import { LevelDialog } from './dialogs/LevelDialog';
 import { HelpDialog, InfoDialog, InstallDialog, ProjectsDialog } from './dialogs/MiscDialogs';
 import { ProfileBrowserHost } from './dialogs/ProfileBrowser';
 import { ReportDialog } from './dialogs/ReportDialog';
-import { PropertyPanel } from './PropertyPanel';
+import { PropertyWindow } from './PropertyPanel';
 import { Ribbon } from './Ribbon';
 import { StatusBar } from './StatusBar';
 import { ui } from './ui';
@@ -54,13 +54,10 @@ export function App() {
         <div class="side-wrap" style={{ width: c.left, display: c.leftOpen ? undefined : 'none' }}>
           <Browser />
         </div>
-        <PanelSplitter side="left" />
+        <PanelSplitter />
         <ViewsArea />
-        <PanelSplitter side="right" />
-        <div class="side-wrap" style={{ width: c.right, display: c.rightOpen ? undefined : 'none' }}>
-          <PropertyPanel />
-        </div>
       </div>
+      <PropertyWindow />
       <StatusBar />
       <Dialogs />
       <RecogHost />

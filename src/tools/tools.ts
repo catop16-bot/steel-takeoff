@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { toast, ui, type ToolId } from '../app/ui';
+import { isMemberTool, openProps, propOpen } from '../app/propWindow';
 import { levelAt, levelBelow } from '../geom/grid';
 import { add, addScaled, dist, norm, round3, scale, sub, type V3 } from '../geom/vec';
 import { newMember } from '../model/defaults';
@@ -74,6 +75,8 @@ export class Controller implements PointerHandler {
     ui.tool.value = id;
     ui.numeric.value = '';
     this.tool.start();
+    // 屬性視窗沒開時，提醒怎麼設定斷面等預設屬性
+    if (isMemberTool(id) && !propOpen.peek()) ui.prompt.value += '（雙擊工具按鈕或按 N 設定斷面）';
     this.viewer.requestRender();
   }
 
@@ -301,9 +304,18 @@ class SelectTool implements Tool {
     private v: Viewer,
   ) {}
   start() {
-    ui.prompt.value = '點選構件；左→右框選完整包含、右→左框選相交；Shift 加選、Ctrl 切換';
+    ui.prompt.value = '點選構件（雙擊開啟屬性）；左→右框選完整包含、右→左框選相交；Shift 加選、Ctrl 切換';
   }
   pointer(e: PaneEvent) {
+    if (e.type === 'dbl') {
+      // 雙擊構件：開啟浮動屬性視窗（仿 Tekla）
+      const hit = this.v.pick(e.pane, e.px, e.py);
+      if (hit) {
+        if (!store.selection.peek().has(hit.id)) store.select([hit.id]);
+        openProps();
+      }
+      return;
+    }
     if (e.type === 'down') {
       this.down = { x: e.px, y: e.py, pane: e.pane, shift: e.shift, ctrl: e.ctrl };
       return;
@@ -394,7 +406,7 @@ class ColumnTool implements Tool {
     _v: Viewer,
   ) {}
   start() {
-    ui.prompt.value = '柱：點選柱位置（底部、頂部高程依屬性面板設定）';
+    ui.prompt.value = '柱：點選柱位置（底部、頂部高程依預設屬性設定）';
   }
   private range(): [number, number] {
     const d = defaultsOf('column');
@@ -407,7 +419,7 @@ class ColumnTool implements Tool {
     const d = defaultsOf('column');
     const [z0, z1] = this.range();
     if (!(z1 > z0)) {
-      toast('柱頂部高程必須高於底部，請在屬性面板調整');
+      toast('柱頂部高程必須高於底部，請雙擊柱工具按鈕調整');
       return null;
     }
     return newMember('column', d, round3([p[0], p[1], z0]), round3([p[0], p[1], z1]), {

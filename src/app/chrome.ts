@@ -2,23 +2,31 @@ import { signal } from '@preact/signals';
 import { isTyping } from '../view3d/viewer';
 
 /**
- * 介面外框大小：左側專案瀏覽、右側屬性面板的寬度與收合，上方工具列（功能區）的縮放與收合。
+ * 介面外框大小：左側專案瀏覽的寬度與收合、浮動屬性視窗的位置與大小、上方工具列（功能區）的縮放與收合。
  * 屬於每台電腦的個人偏好，存在瀏覽器 localStorage（不隨專案）。
  */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface ChromeState {
   left: number;
-  right: number;
   leftOpen: boolean;
-  rightOpen: boolean;
+  /** 屬性視窗上次的位置與大小；null＝還沒開過，用預設位置 */
+  prop: Rect | null;
   /** 工具列內容縮放比例 */
   ribbonScale: number;
   ribbonOpen: boolean;
 }
 
-export const CHROME_DEFAULTS: ChromeState = { left: 230, right: 300, leftOpen: true, rightOpen: true, ribbonScale: 1, ribbonOpen: true };
+export const CHROME_DEFAULTS: ChromeState = { left: 230, leftOpen: true, prop: null, ribbonScale: 1, ribbonOpen: true };
 export const LIMITS = {
   left: [160, 560] as const,
-  right: [220, 640] as const,
+  /** 屬性視窗最小寬高 */
+  propMin: [260, 200] as const,
   ribbonScale: [0.75, 1.35] as const,
   /** 拖到比這更窄就收合 */
   collapseBelow: 110,
@@ -35,11 +43,12 @@ function load(): ChromeState {
     if (!s || typeof s !== 'object') return { ...CHROME_DEFAULTS };
     const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
     const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
+    const r = s.prop;
+    const prop = r && typeof r === 'object' && [r.x, r.y, r.w, r.h].every((v) => typeof v === 'number' && Number.isFinite(v)) ? { x: r.x, y: r.y, w: r.w, h: r.h } : null;
     return {
       left: clamp(num(s.left, CHROME_DEFAULTS.left), LIMITS.left),
-      right: clamp(num(s.right, CHROME_DEFAULTS.right), LIMITS.right),
       leftOpen: bool(s.leftOpen, true),
-      rightOpen: bool(s.rightOpen, true),
+      prop,
       ribbonScale: clamp(num(s.ribbonScale, 1), LIMITS.ribbonScale),
       ribbonOpen: bool(s.ribbonOpen, true),
     };
@@ -70,20 +79,27 @@ export function patchChrome(p: Partial<ChromeState>, persist = true) {
 
 export const saveChrome = save;
 
-/** 側欄最大寬度：視圖區至少保留 LIMITS.viewsMin */
-export function maxPanelWidth(side: 'left' | 'right'): number {
-  const c = chrome.peek();
-  const other = side === 'left' ? (c.rightOpen ? c.right : 0) : c.leftOpen ? c.left : 0;
-  return Math.max(LIMITS[side][0], Math.min(LIMITS[side][1], window.innerWidth - other - LIMITS.viewsMin - 12));
+/** 左側欄寬度限制：視圖區至少保留 LIMITS.viewsMin */
+export function clampLeft(w: number): number {
+  const max = Math.max(LIMITS.left[0], Math.min(LIMITS.left[1], window.innerWidth - LIMITS.viewsMin - 12));
+  return Math.min(max, Math.max(LIMITS.left[0], w));
 }
 
-export function clampPanel(side: 'left' | 'right', w: number): number {
-  return Math.min(maxPanelWidth(side), Math.max(LIMITS[side][0], w));
+export function toggleLeft() {
+  patchChrome({ leftOpen: !chrome.peek().leftOpen });
 }
 
-export function togglePanel(side: 'left' | 'right') {
-  const k = side === 'left' ? 'leftOpen' : 'rightOpen';
-  patchChrome({ [k]: !chrome.peek()[k] });
+/** 屬性視窗位置：上次的位置（拉回視窗範圍內），沒有就放在右上 */
+export function propRect(): Rect {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const r = chrome.peek().prop ?? { x: W - 336, y: 130, w: 320, h: Math.min(640, H - 170) };
+  const w = Math.min(Math.max(r.w, LIMITS.propMin[0]), W - 16);
+  const h = Math.min(Math.max(r.h, LIMITS.propMin[1]), H - 16);
+  // 至少留標題列在畫面內，才拖得回來
+  const x = Math.min(Math.max(r.x, 8 - w + 120), W - 120);
+  const y = Math.min(Math.max(r.y, 0), H - 40);
+  return { x, y, w, h };
 }
 
 export function toggleRibbon() {
@@ -94,17 +110,14 @@ export function resetChrome() {
   patchChrome({ ...CHROME_DEFAULTS });
 }
 
-/** T：左側欄、N：右側欄（同 Blender 的工具列／側欄快捷鍵） */
+/** T：左側欄（同 Blender 的工具列快捷鍵）；N（屬性視窗）在 propWindow.ts */
 export function setupChromeKeys() {
   window.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || isTyping(e)) return;
     if (document.querySelector('.modal')) return;
     if (e.key === 't' || e.key === 'T') {
       e.preventDefault();
-      togglePanel('left');
-    } else if (e.key === 'n' || e.key === 'N') {
-      e.preventDefault();
-      togglePanel('right');
+      toggleLeft();
     }
   });
 }

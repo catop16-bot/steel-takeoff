@@ -2,7 +2,7 @@ import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { store } from '../model/store';
-import { MEMBER_TYPES, MEMBER_TYPE_LABEL } from '../model/types';
+import { MEMBER_TYPES, MEMBER_TYPE_LABEL, type ToolKey } from '../model/types';
 import { syncViews } from '../model/ops';
 import { app } from './core';
 import { Icon } from './Icons';
@@ -10,6 +10,7 @@ import { ui, toast, type ToolId } from './ui';
 import { installApp, pwa } from './pwa';
 import { applyPreset, toggleMaximize } from './panes';
 import { chrome, LIMITS, patchChrome, resetChrome, saveChrome, toggleRibbon } from './chrome';
+import { openToolProps, propOpen } from './propWindow';
 import { exportCsv, exportExcel, openPrint, runNumbering } from '../report/actions';
 import { newProjectFlow, openFileFlow, saveFileFlow, loadSampleFlow } from './projectFlows';
 import { importDrawingFlow } from './drawingFlows';
@@ -17,10 +18,10 @@ import { openMembersRecog, openScheduleTable, recog, recognizeGridFlow, recogniz
 
 type Tab = 'steel' | 'drawing' | 'recog' | 'edit' | 'view' | 'report';
 
-function Btn(props: { icon: string; label: string; on?: boolean; disabled?: boolean; title?: string; onClick: () => void }) {
+function Btn(props: { icon: string; label: string; on?: boolean; disabled?: boolean; title?: string; onClick: () => void; onDblClick?: () => void }) {
   const I = Icon[props.icon];
   return (
-    <button class={`rbtn${props.on ? ' on' : ''}`} disabled={props.disabled} title={props.title ?? props.label} onClick={props.onClick}>
+    <button class={`rbtn${props.on ? ' on' : ''}`} disabled={props.disabled} title={props.title ?? props.label} onClick={props.onClick} onDblClick={props.onDblClick}>
       {I && <I />}
       <span>{props.label}</span>
     </button>
@@ -192,12 +193,18 @@ export function Ribbon() {
         {tab.value === 'steel' && (
           <>
             <Group title="構件">
-              <Btn icon="column" label="柱" on={t === 'column'} onClick={() => tool('column')} />
-              <Btn icon="girder" label="大梁" on={t === 'girder'} onClick={() => tool('girder')} />
-              <Btn icon="beam" label="小梁" on={t === 'beam'} onClick={() => tool('beam')} />
-              <Btn icon="brace" label="斜撐" on={t === 'brace'} onClick={() => tool('brace')} />
-              <Btn icon="purlin" label="桁條" on={t === 'purlin'} onClick={() => tool('purlin')} />
-              <Btn icon="plate" label="多邊形板" on={t === 'plate'} onClick={() => tool('plate')} />
+              {(
+                [
+                  ['column', '柱'],
+                  ['girder', '大梁'],
+                  ['beam', '小梁'],
+                  ['brace', '斜撐'],
+                  ['purlin', '桁條'],
+                  ['plate', '多邊形板'],
+                ] as [ToolKey, string][]
+              ).map(([k, label]) => (
+                <Btn key={k} icon={k} label={label} on={t === k} title={`${label}（雙擊設定斷面等預設屬性）`} onClick={() => tool(k)} onDblClick={() => openToolProps(k)} />
+              ))}
             </Group>
             <Group title="基準">
               <Btn icon="grid" label="軸線" onClick={() => (ui.dialog.value = 'grid')} />
@@ -331,7 +338,7 @@ export function Ribbon() {
             <Group title="介面">
               <div class="rcol">
                 <Small label="左側欄（T）" on={c.leftOpen} title="專案瀏覽：拖曳邊界調整寬度" onClick={() => patchChrome({ leftOpen: !c.leftOpen })} />
-                <Small label="右側欄（N）" on={c.rightOpen} title="屬性面板：拖曳邊界調整寬度" onClick={() => patchChrome({ rightOpen: !c.rightOpen })} />
+                <Small label="屬性視窗（N）" on={propOpen.value} title="浮動屬性視窗：雙擊構件也會打開，Esc 關閉" onClick={() => (propOpen.value = !propOpen.value)} />
                 <Small label="重設介面大小" title="側欄寬度與工具列大小恢復預設" onClick={resetChrome} />
               </div>
             </Group>

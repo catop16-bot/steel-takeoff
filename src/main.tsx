@@ -7,6 +7,7 @@ import { openProject, saveFileFlow } from './app/projectFlows';
 import { setupPwa } from './app/pwa';
 import { setupPaneKeys } from './app/panes';
 import { setupChromeKeys } from './app/chrome';
+import { setupPropKeys } from './app/propWindow';
 import { ui } from './app/ui';
 import { lastProjectId, loadLocal, startAutosave } from './model/persist';
 import { store } from './model/store';
@@ -34,6 +35,7 @@ async function boot() {
   setupPwa();
   setupPaneKeys();
   setupChromeKeys();
+  setupPropKeys();
 
   window.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {

@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { MATERIALS, densityOf } from '../catalog/materials';
 import { parseProfile, unitWeight } from '../catalog/parse';
 import { store } from '../model/store';
-import { MEMBER_TYPES, MEMBER_TYPE_LABEL, type Member, type MemberDefaults, type MemberType, type ToolKey } from '../model/types';
+import { MEMBER_TYPE_LABEL, type Member, type MemberDefaults, type MemberType, type ToolKey } from '../model/types';
 import { computeMember } from '../quantity/compute';
 import { summarize } from '../quantity/summary';
 import { CLASS_COLORS } from '../view3d/colors';
 import { fmtNum } from './core';
 import { openProfileBrowser } from './dialogs/ProfileBrowser';
+import { chrome, LIMITS, patchChrome, propRect, saveChrome } from './chrome';
+import { closeProps, isMemberTool, propOpen } from './propWindow';
 import { ui } from './ui';
 
 const MIXED = '\u0000';
@@ -222,7 +224,7 @@ function ToolDefaults(props: { type: ToolKey }) {
       <h3>
         {MEMBER_TYPE_LABEL[props.type]}的預設屬性
       </h3>
-      <div class="hint">之後新建的{MEMBER_TYPE_LABEL[props.type]}使用這些設定（相當於 Tekla 屬性對話框）。按 Esc 回到選取。</div>
+      <div class="hint">之後新建的{MEMBER_TYPE_LABEL[props.type]}使用這些設定（相當於 Tekla 屬性對話框）。</div>
       <CommonFields f={f} set={set} dirty={new Set()} plate={props.type === 'plate'} linear={props.type !== 'plate'} />
       {props.type === 'column' && (
         <>
@@ -440,13 +442,13 @@ function Selection(props: { ids: ReadonlySet<string> }) {
   );
 }
 
-function Overview() {
+/** 專案數量統計（放在左側專案瀏覽） */
+export function Overview() {
   const p = store.project.value;
   const ctx = { grids: p.grids, levels: p.levels, customMaterials: p.customMaterials, paintIncludeEnds: p.settings.paintIncludeEnds };
   const s = useMemo(() => summarize(p.members.map((m) => computeMember(m, ctx)), p.levels, p.grids), [p]);
   return (
-    <div class="props">
-      <h3>{p.name}</h3>
+    <div class="props overview">
       <dl class="qty">
         <dt>構件數</dt>
         <dd>{fmtNum(s.total.qty)}</dd>
@@ -482,25 +484,111 @@ function Overview() {
         </tbody>
       </table>
       <div class="hint" style={{ marginTop: 10, lineHeight: 1.7 }}>
-        點選構件可在這裡修改屬性；選擇工具時這裡顯示該工具的預設屬性。
+        雙擊構件開啟屬性視窗（N）；雙擊工具按鈕設定斷面等預設屬性。
       </div>
     </div>
   );
 }
 
-export function PropertyPanel() {
+/**
+ * 浮動屬性視窗：拖曳標題列移動、拖曳右下角調整大小，位置與大小記住；Esc 或 × 關閉。
+ * 使用構件工具時顯示該工具的預設屬性，否則顯示選取的構件。
+ */
+export function PropertyWindow() {
+  const open = propOpen.value;
   const t = ui.tool.value;
   const sel = store.selection.value;
+  void chrome.value; // 位置變更時重畫
+  const el = useRef<HTMLDivElement>(null);
+  const [, bump] = useState(0);
+  // 視窗大小改變時把屬性視窗拉回畫面內
+  useEffect(() => {
+    const h = () => bump((n) => n + 1);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  // 使用者拖右下角改大小：記下新尺寸
+  useEffect(() => {
+    const node = el.current;
+    if (!open || !node) return;
+    let first = true;
+    const ro = new ResizeObserver(() => {
+      if (first) {
+        first = false;
+        return;
+      }
+      // 關閉時元素被移除會回報 0×0，不能當成使用者改的大小
+      if (!node.isConnected || node.offsetWidth < 50 || node.offsetHeight < 50) return;
+      const cur = propRect();
+      const w = Math.round(node.offsetWidth);
+      const h = Math.round(node.offsetHeight);
+      if (Math.abs(w - cur.w) > 1 || Math.abs(h - cur.h) > 1) patchChrome({ prop: { ...cur, w, h } });
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [open]);
+  if (!open) return null;
+  const r = propRect();
+  const tool = isMemberTool(t) ? t : null;
+  const title = tool ? '工具預設屬性' : '構件屬性';
+  const startDrag = (e: PointerEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
+    e.preventDefault();
+    const head = e.currentTarget as HTMLElement;
+    head.setPointerCapture(e.pointerId);
+    const s0 = propRect();
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    const move = (ev: PointerEvent) => {
+      patchChrome({ prop: { ...s0, x: s0.x + ev.clientX - x0, y: s0.y + ev.clientY - y0 } }, false);
+    };
+    const end = () => {
+      head.removeEventListener('pointermove', move);
+      head.removeEventListener('pointerup', end);
+      head.removeEventListener('pointercancel', end);
+      patchChrome({ prop: propRect() });
+      saveChrome();
+    };
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', end);
+    head.addEventListener('pointercancel', end);
+  };
   return (
-    <div class="side right">
-      <datalist id="materials">
-        {[...MATERIALS, ...store.project.value.customMaterials].map((m) => (
-          <option key={m.name} value={m.name}>
-            {m.standard}
-          </option>
-        ))}
-      </datalist>
-      {(MEMBER_TYPES as string[]).includes(t) ? <ToolDefaults type={t as ToolKey} /> : sel.size ? <Selection ids={sel} /> : <Overview />}
+    <div
+      ref={el}
+      class="prop-win"
+      style={{ left: r.x, top: r.y, width: r.w, height: r.h, minWidth: LIMITS.propMin[0], minHeight: LIMITS.propMin[1] }}
+    >
+      <div class="prop-win-h" onPointerDown={startDrag} title="拖曳移動">
+        <span class="grow">{title}</span>
+        <button class="x" title="關閉（Esc）" onClick={closeProps}>
+          ×
+        </button>
+      </div>
+      <div class="prop-win-b">
+        <datalist id="materials">
+          {[...MATERIALS, ...store.project.value.customMaterials].map((m) => (
+            <option key={m.name} value={m.name}>
+              {m.standard}
+            </option>
+          ))}
+        </datalist>
+        {tool ? (
+          <ToolDefaults type={tool} />
+        ) : sel.size ? (
+          <Selection ids={sel} />
+        ) : (
+          <div class="props">
+            <div class="hint" style={{ lineHeight: 1.8 }}>
+              沒有選取構件。
+              <br />
+              在視圖中點選構件即可在這裡修改；雙擊構件會直接打開這個視窗。
+              <br />
+              雙擊上方的柱、大梁等工具按鈕可設定新建構件的預設屬性。
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

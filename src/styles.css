@@ -1407,3 +1407,64 @@ button.danger {
   z-index: 210;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
+
+/* ---------- 浮動屬性視窗（雙擊構件開啟，可拖曳、調整大小） ---------- */
+.prop-win {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 14px 36px rgba(20, 30, 40, 0.28);
+  overflow: hidden;
+  /* 右下角可拖曳調整大小 */
+  resize: both;
+}
+
+.prop-win-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  flex: none;
+  padding: 0 4px 0 12px;
+  background: var(--ribbon);
+  color: #e8eef5;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.prop-win-h .grow {
+  flex: 1;
+}
+
+.prop-win-h .x {
+  border: 0;
+  background: transparent;
+  color: #c9d6e3;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.prop-win-h .x:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.prop-win-b {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* 左側欄的數量統計 */
+.props.overview {
+  padding: 2px 12px 6px;
+}
