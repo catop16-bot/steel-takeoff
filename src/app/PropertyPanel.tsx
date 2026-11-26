@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
-import { MATERIALS, densityOf } from '../catalog/materials';
+import { DEFAULT_DENSITY, densityOf, findMaterial, materialGroups } from '../catalog/materials';
 import { parseProfile, unitWeight } from '../catalog/parse';
 import { store } from '../model/store';
 import { MEMBER_TYPE_LABEL, type Member, type MemberDefaults, type MemberType, type ToolKey } from '../model/types';
@@ -100,6 +100,37 @@ function Sel(props: { k: string; f: Form; set: (k: string, v: string) => void; o
   );
 }
 
+/**
+ * 材質：下拉選單列出全部材質（依規範分組），不再用會依目前文字過濾的 datalist，
+ * 也不會存到打一半的名稱。舊資料裡不在型錄的名稱照樣顯示並提醒。
+ */
+function MaterialPick(props: { f: Form; set: (k: string, v: string) => void }) {
+  const v = props.f.material ?? '';
+  const custom = store.p.customMaterials;
+  const mixed = v === MIXED;
+  const mat = mixed ? undefined : findMaterial(v, custom);
+  return (
+    <>
+      <select class={!mixed && !mat ? 'bad' : ''} value={mixed ? '' : (mat?.name ?? v)} onChange={(e) => props.set('material', (e.target as HTMLSelectElement).value)}>
+        {mixed && <option value="">（多種）</option>}
+        {!mixed && !mat && <option value={v}>{v || '（未指定）'}（未登錄）</option>}
+        {materialGroups(custom).map((g) => (
+          <optgroup key={g.label} label={g.label}>
+            {g.items.map((m) => (
+              <option key={m.name} value={m.name}>
+                {m.name}
+                {m.density !== DEFAULT_DENSITY ? `（${fmtNum(m.density)} kg/m³）` : ''}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {mat && <div class="hint">密度 {fmtNum(mat.density)} kg/m³・{mat.standard}</div>}
+      {!mixed && !mat && <div class="hint err">「{v || '空白'}」不在材質型錄，密度暫以 {fmtNum(DEFAULT_DENSITY)} kg/m³ 計算，請從清單選擇。</div>}
+    </>
+  );
+}
+
 function ProfileHint(props: { text: string; material: string }) {
   if (!props.text || props.text === MIXED) return null;
   const r = parseProfile(props.text);
@@ -149,8 +180,7 @@ function PartFields(props: FieldProps) {
         <ProfileHint text={prof} material={f.material} />
       </Row>
       <Row label="材質" dirty={dirty.has('material')}>
-        <Txt k="material" f={f} set={set} list="materials" />
-        {f.material && f.material !== MIXED && <div class="hint">密度 {fmtNum(densityOf(f.material, store.p.customMaterials))} kg/m³</div>}
+        <MaterialPick f={f} set={set} />
       </Row>
       <Row label="類別" dirty={dirty.has('cls')}>
         <ClassPick f={f} set={set} />
@@ -610,13 +640,6 @@ export function PropertyWindow() {
         </button>
       </div>
       <div class="prop-win-b">
-        <datalist id="materials">
-          {[...MATERIALS, ...store.project.value.customMaterials].map((m) => (
-            <option key={m.name} value={m.name}>
-              {m.standard}
-            </option>
-          ))}
-        </datalist>
         {tool ? (
           <ToolDefaults type={tool} />
         ) : sel.size ? (

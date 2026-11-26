@@ -44,3 +44,28 @@ export function findMaterial(name: string, custom: Material[] = []): Material | 
 export function densityOf(name: string, custom: Material[] = []): number {
   return findMaterial(name, custom)?.density ?? DEFAULT_DENSITY;
 }
+
+export interface MaterialGroup {
+  label: string;
+  items: Material[];
+}
+
+/**
+ * 材質下拉選單的分組（同 Tekla 材質型錄）：自訂材質在最前，其餘依規範分組並保持型錄順序；
+ * 群組名稱用該規範第一筆的說明，例如「建築結構用（CNS 13812 / JIS G 3136）」。
+ */
+export function materialGroups(custom: Material[] = []): MaterialGroup[] {
+  const groups: MaterialGroup[] = [];
+  if (custom.length) groups.push({ label: '自訂材質', items: [...custom] });
+  const byStd = new Map<string, MaterialGroup>();
+  for (const m of MATERIALS) {
+    let g = byStd.get(m.standard);
+    if (!g) {
+      g = { label: m.note ? `${m.note}（${m.standard}）` : m.standard, items: [] };
+      byStd.set(m.standard, g);
+      groups.push(g);
+    }
+    g.items.push(m);
+  }
+  return groups;
+}

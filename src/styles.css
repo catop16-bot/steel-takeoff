@@ -56,7 +56,8 @@ textarea:focus {
   border-color: var(--accent);
 }
 
-input.bad {
+input.bad,
+select.bad {
   border-color: var(--danger);
   background: #fff5f5;
 }
