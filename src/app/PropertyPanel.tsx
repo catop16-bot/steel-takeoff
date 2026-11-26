@@ -10,7 +10,7 @@ import { CLASS_COLORS } from '../view3d/colors';
 import { fmtNum } from './core';
 import { openProfileBrowser } from './dialogs/ProfileBrowser';
 import { chrome, LIMITS, patchChrome, propRect, saveChrome } from './chrome';
-import { closeProps, isMemberTool, propOpen } from './propWindow';
+import { closeProps, isMemberTool, propOpen, propTab } from './propWindow';
 import { ui } from './ui';
 
 const MIXED = '\u0000';
@@ -194,6 +194,23 @@ function PositionFields(props: FieldProps) {
   );
 }
 
+/** 零件屬性／位置 兩個分頁（仿 Tekla 屬性對話框的頁籤）；有未套用的修改時頁籤標一個點 */
+function PropTabs(props: { dirtyPart?: boolean; dirtyPos?: boolean }) {
+  const t = propTab.value;
+  const tab = (k: 'part' | 'pos', label: string, dirty?: boolean) => (
+    <button role="tab" aria-selected={t === k} class={t === k ? 'on' : ''} onClick={() => (propTab.value = k)}>
+      {label}
+      {dirty && <span class="dot" title="有未套用的修改" />}
+    </button>
+  );
+  return (
+    <div class="prop-tabs" role="tablist">
+      {tab('part', '零件屬性', props.dirtyPart)}
+      {tab('pos', '位置', props.dirtyPos)}
+    </div>
+  );
+}
+
 // ---------------- 工具預設值 ----------------
 
 function defaultsForm(d: MemberDefaults): Form {
@@ -232,15 +249,15 @@ function ToolDefaults(props: { type: ToolKey }) {
   };
   return (
     <div class="props">
+      <PropTabs />
       <h3>
         {MEMBER_TYPE_LABEL[props.type]}的預設屬性
       </h3>
       <div class="hint">之後新建的{MEMBER_TYPE_LABEL[props.type]}使用這些設定（相當於 Tekla 屬性對話框）。</div>
-      <div class="prop-cols">
-        <div class="prop-col">
-          <PartFields f={f} set={set} dirty={new Set()} plate={props.type === 'plate'} linear={props.type !== 'plate'} />
-        </div>
-        <div class="prop-col">
+      {propTab.value === 'part' ? (
+        <PartFields f={f} set={set} dirty={new Set()} plate={props.type === 'plate'} linear={props.type !== 'plate'} />
+      ) : (
+        <>
           <PositionFields f={f} set={set} dirty={new Set()} plate={props.type === 'plate'} linear={props.type !== 'plate'} />
       {props.type === 'column' && (
         <>
@@ -260,8 +277,8 @@ function ToolDefaults(props: { type: ToolKey }) {
           <div class="hint">後方欄位為相對樓層的偏移（mm），例如柱頂到梁底可填 −588。</div>
         </>
       )}
-        </div>
-      </div>
+        </>
+      )}
       <ToolTips type={props.type} />
     </div>
   );
@@ -283,6 +300,8 @@ function ToolTips(props: { type: ToolKey }) {
 
 // ---------------- 選取構件 ----------------
 
+/** 零件屬性頁的欄位（其餘都在位置頁） */
+const PART_KEYS = ['name', 'profile', 'material', 'cls', 'prefix'];
 const SEL_KEYS = ['name', 'profile', 'material', 'cls', 'prefix', 'pos.plane', 'pos.planeOffset', 'pos.rotation', 'pos.rotationAngle', 'pos.depth', 'pos.depthOffset'];
 const OFF_KEYS = ['offStart.dx', 'offStart.dy', 'offStart.dz', 'offEnd.dx', 'offEnd.dy', 'offEnd.dz'];
 const GEO_KEYS = ['start.x', 'start.y', 'start.z', 'end.x', 'end.y', 'end.z'];
@@ -349,16 +368,16 @@ function Selection(props: { ids: ReadonlySet<string> }) {
 
   return (
     <div class="props">
+      <PropTabs dirtyPart={PART_KEYS.some((k) => dirty.has(k))} dirtyPos={[...dirty].some((k) => !PART_KEYS.includes(k))} />
       <h3>
         {single ? `${MEMBER_TYPE_LABEL[single.type]}` : `已選 ${ms.length} 支構件`}
         {single?.mark && <span class="chip on">{single.mark}</span>}
       </h3>
       {!single && <div class="hint">類型：{[...types].map((t) => MEMBER_TYPE_LABEL[t]).join('、')}。只會套用有改動（藍字）的欄位。</div>}
-      <div class="prop-cols">
-        <div class="prop-col">
-          <PartFields f={f} set={set} dirty={dirty} plate={plate} linear={linear} />
-        </div>
-        <div class="prop-col">
+      {propTab.value === 'part' ? (
+        <PartFields f={f} set={set} dirty={dirty} plate={plate} linear={linear} />
+      ) : (
+        <>
           <PositionFields f={f} set={set} dirty={dirty} plate={plate} linear={linear} />
       {linear && (
         <>
@@ -399,8 +418,8 @@ function Selection(props: { ids: ReadonlySet<string> }) {
           </Row>
         </>
       )}
-        </div>
-      </div>
+        </>
+      )}
       <div class="actions">
         <button class="primary" disabled={!dirty.size} onClick={apply}>
           修改

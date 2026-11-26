@@ -9,8 +9,11 @@ import { app } from './core';
  * 內容依目前狀態：使用構件工具時顯示該工具的預設屬性，否則顯示選取的構件。
  */
 export const propOpen = signal(false);
+/** 目前分頁：零件屬性／位置。每次打開都從零件屬性開始 */
+export const propTab = signal<'part' | 'pos'>('part');
 
 export function openProps() {
+  propTab.value = 'part';
   propOpen.value = true;
 }
 
@@ -21,7 +24,7 @@ export function closeProps() {
 /** 雙擊工具按鈕：切到該工具並打開它的預設屬性 */
 export function openToolProps(t: ToolKey) {
   app.controller?.setTool(t);
-  propOpen.value = true;
+  openProps();
 }
 
 export const isMemberTool = (t: string): t is ToolKey => (MEMBER_TYPES as readonly string[]).includes(t);
@@ -46,7 +49,8 @@ export function setupPropKeys() {
     if (document.querySelector('.modal')) return;
     if (e.key === 'n' || e.key === 'N') {
       e.preventDefault();
-      propOpen.value = !propOpen.peek();
+      if (propOpen.peek()) closeProps();
+      else openProps();
     }
   });
 }

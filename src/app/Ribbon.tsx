@@ -10,7 +10,7 @@ import { ui, toast, type ToolId } from './ui';
 import { installApp, pwa } from './pwa';
 import { applyPreset, toggleMaximize } from './panes';
 import { chrome, LIMITS, patchChrome, resetChrome, saveChrome, toggleRibbon } from './chrome';
-import { openToolProps, propOpen } from './propWindow';
+import { closeProps, openProps, openToolProps, propOpen } from './propWindow';
 import { exportCsv, exportExcel, openPrint, runNumbering } from '../report/actions';
 import { newProjectFlow, openFileFlow, saveFileFlow, loadSampleFlow } from './projectFlows';
 import { importDrawingFlow } from './drawingFlows';
@@ -338,7 +338,7 @@ export function Ribbon() {
             <Group title="介面">
               <div class="rcol">
                 <Small label="左側欄（T）" on={c.leftOpen} title="專案瀏覽：拖曳邊界調整寬度" onClick={() => patchChrome({ leftOpen: !c.leftOpen })} />
-                <Small label="屬性視窗（N）" on={propOpen.value} title="浮動屬性視窗：雙擊構件也會打開，Esc 關閉" onClick={() => (propOpen.value = !propOpen.value)} />
+                <Small label="屬性視窗（N）" on={propOpen.value} title="浮動屬性視窗：雙擊構件也會打開，Esc 關閉" onClick={() => (propOpen.value ? closeProps() : openProps())} />
                 <Small label="重設介面大小" title="側欄寬度與工具列大小恢復預設" onClick={resetChrome} />
               </div>
             </Group>

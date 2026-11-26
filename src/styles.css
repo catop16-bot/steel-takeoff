@@ -1466,18 +1466,50 @@ button.danger {
   container-type: inline-size;
 }
 
-/* 左欄：零件屬性；右欄：位置、端部偏移、座標。視窗太窄時上下排 */
-.prop-cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0 18px;
-  align-items: start;
+/* 零件屬性／位置 分頁：捲動時停在視窗頂端 */
+.prop-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  margin: -8px -10px 8px;
+  padding: 6px 10px 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
 }
 
-@container (max-width: 560px) {
-  .prop-cols {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.prop-tabs button {
+  position: relative;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  padding: 6px 14px;
+  margin-bottom: -1px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.prop-tabs button:hover {
+  color: var(--text);
+}
+
+.prop-tabs button.on {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.prop-tabs .dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
 }
 
 /* 寬視窗時數量表排成兩對欄，省高度 */

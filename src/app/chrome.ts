@@ -20,14 +20,14 @@ export interface ChromeState {
   /** 工具列內容縮放比例 */
   ribbonScale: number;
   ribbonOpen: boolean;
-  /** 設定格式版本（2：屬性視窗改成左右兩欄，預設較寬） */
+  /** 設定格式版本（3：屬性視窗改成分頁，回到單欄寬度） */
   v: number;
 }
 
-export const CHROME_DEFAULTS: ChromeState = { left: 230, leftOpen: true, prop: null, ribbonScale: 1, ribbonOpen: true, v: 2 };
-/** 屬性視窗預設大小（左右兩欄） */
-const PROP_W = 660;
-const PROP_H = 600;
+export const CHROME_DEFAULTS: ChromeState = { left: 230, leftOpen: true, prop: null, ribbonScale: 1, ribbonOpen: true, v: 3 };
+/** 屬性視窗預設大小（單欄，零件屬性／位置分頁） */
+const PROP_W = 380;
+const PROP_H = 580;
 export const LIMITS = {
   left: [160, 560] as const,
   /** 屬性視窗最小寬高 */
@@ -50,15 +50,15 @@ function load(): ChromeState {
     const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
     const r = s.prop;
     let prop = r && typeof r === 'object' && [r.x, r.y, r.w, r.h].every((v) => typeof v === 'number' && Number.isFinite(v)) ? { x: r.x, y: r.y, w: r.w, h: r.h } : null;
-    // 舊版存的是單欄寬度，改成兩欄後放寬一次（往左挪，右緣不動）
-    if (prop && num(s.v, 1) < 2 && prop.w < 600) prop = { ...prop, x: Math.max(8, prop.x - (PROP_W - prop.w)), w: PROP_W };
+    // 曾短暫改成左右兩欄（預設 660 寬），改回分頁後縮回單欄寬度（右緣不動）
+    if (prop && num(s.v, 1) < 3 && prop.w >= 600) prop = { ...prop, x: prop.x + (prop.w - PROP_W), w: PROP_W };
     return {
       left: clamp(num(s.left, CHROME_DEFAULTS.left), LIMITS.left),
       leftOpen: bool(s.leftOpen, true),
       prop,
       ribbonScale: clamp(num(s.ribbonScale, 1), LIMITS.ribbonScale),
       ribbonOpen: bool(s.ribbonOpen, true),
-      v: 2,
+      v: 3,
     };
   } catch {
     return { ...CHROME_DEFAULTS };
