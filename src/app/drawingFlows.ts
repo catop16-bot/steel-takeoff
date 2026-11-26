@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+import { activeViewId, showViewIn } from './panes';
 import { parseCad } from '../drawing/parse';
 import { extractPdfPage, loadPdfjs, pageThumb, PT_MM, rasterizePage } from '../drawing/pdf';
 import { localToPlane, targetFrame } from '../drawing/placement';
@@ -10,7 +11,7 @@ import { pickFile } from '../model/persist';
 import { store } from '../model/store';
 import type { DrawingRef, DrawingTarget } from '../model/types';
 import { app } from './core';
-import { toast, ui } from './ui';
+import { toast } from './ui';
 
 export interface ImportState {
   file: File;
@@ -105,7 +106,7 @@ export async function pickPdfPage(n: number, scale: number) {
 /** 匯入時預設放在目前窗格的平面／立面 */
 export function defaultTarget(): DrawingTarget | null {
   const p = store.p;
-  const vid = ui.paneViews.peek()[ui.activePane.peek()];
+  const vid = activeViewId();
   const v = p.views.find((x) => x.id === vid);
   if (v?.kind === 'plan' && v.levelId) return { kind: 'plan', levelId: v.levelId };
   if (v?.kind === 'elevation' && v.gridRef) return { kind: 'elevation', ...v.gridRef };
@@ -186,12 +187,7 @@ export async function commitImport(opts: { name: string; target: DrawingTarget; 
       ? x.kind === 'plan' && x.levelId === opts.target.levelId
       : x.kind === 'elevation' && x.gridRef?.gridId === opts.target.gridId && x.gridRef.dir === opts.target.dir && x.gridRef.label === opts.target.label,
   );
-  if (v) {
-    const ids = [...ui.paneViews.peek()];
-    ids[ui.activePane.peek()] = v.id;
-    ui.paneViews.value = ids;
-    app.viewer?.bindPanes();
-  }
+  if (v) showViewIn(v.id);
   setTimeout(() => app.viewer?.fitAll(), 50);
   return ref;
 }

@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+import { activeViewId } from './panes';
 import * as THREE from 'three';
 import { parseProfile } from '../catalog/parse';
 import { localToPlane, planeToWorld, targetFrame } from '../drawing/placement';
@@ -17,7 +18,7 @@ import { detectBeams, detectColumns, type GridRef, type MemberCandidate, type Pl
 import { extractSchedule, markType, type ScheduleEntry } from '../recognize/schedule';
 import { COLORS } from '../view3d/colors';
 import { app } from './core';
-import { toast, ui } from './ui';
+import { toast } from './ui';
 
 export const BEAM_LAYER_RE = /BEAM|BM|梁|樑|GIRDER|FRAME|S-B|STEEL|STL/i;
 export const COL_LAYER_RE = /COL|柱|S-C/i;
@@ -49,7 +50,7 @@ export function planDrawings(): DrawingRef[] {
 /** 預設圖紙：目前窗格平面視圖同樓層的圖紙，否則第一張平面圖 */
 export function defaultPlanDrawing(): DrawingRef | undefined {
   const p = store.p;
-  const vid = ui.paneViews.peek()[ui.activePane.peek()];
+  const vid = activeViewId();
   const v = p.views.find((x) => x.id === vid);
   const list = planDrawings();
   if (v?.kind === 'plan') {

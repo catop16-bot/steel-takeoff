@@ -2,8 +2,8 @@ import { signal } from '@preact/signals';
 import type { V3 } from '../geom/vec';
 import type { MemberType, ToolKey } from '../model/types';
 import type { DisplayMode } from '../view3d/members';
+import { pane, type LayoutNode } from '../model/layout';
 
-export type Layout = 1 | 2 | 4;
 export type ToolId = 'select' | ToolKey | 'measure' | 'align' | 'pick' | 'box' | 'move' | 'copy' | 'mirror' | 'rotate' | 'split';
 
 export interface SnapSettings {
@@ -16,10 +16,12 @@ export interface SnapSettings {
 }
 
 export const ui = {
-  layout: signal<Layout>(2),
-  /** 每個窗格顯示的視圖 id */
-  paneViews: signal<string[]>([]),
-  activePane: signal(0),
+  /** 視圖窗格版面（可任意分割，見 model/layout.ts） */
+  layout: signal<LayoutNode>(pane('')),
+  /** 目前窗格 id */
+  activePane: signal(''),
+  /** 最大化中的窗格 id（Ctrl+Space） */
+  maximized: signal<string | null>(null),
   tool: signal<ToolId>('select'),
   prompt: signal('選取構件，或從上方功能區選擇工具'),
   cursor: signal<V3 | null>(null),

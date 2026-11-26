@@ -8,6 +8,7 @@ import { app } from './core';
 import { Icon } from './Icons';
 import { ui, toast, type ToolId } from './ui';
 import { installApp, pwa } from './pwa';
+import { applyPreset, toggleMaximize } from './panes';
 import { exportCsv, exportExcel, openPrint, runNumbering } from '../report/actions';
 import { newProjectFlow, openFileFlow, saveFileFlow, loadSampleFlow } from './projectFlows';
 import { importDrawingFlow } from './drawingFlows';
@@ -89,7 +90,7 @@ export function Ribbon() {
   const sel = store.selection.value.size;
   const p = store.project.value;
   const mode = ui.displayMode.value;
-  const layout = ui.layout.value;
+  const maxed = !!ui.maximized.value;
   return (
     <div class="ribbon">
       <div class="ribbon-top">
@@ -264,9 +265,14 @@ export function Ribbon() {
         {tab.value === 'view' && (
           <>
             <Group title="版面">
-              <Btn icon="layout1" label="單一" on={layout === 1} onClick={() => (ui.layout.value = 1)} />
-              <Btn icon="layout2" label="左右" on={layout === 2} onClick={() => (ui.layout.value = 2)} />
-              <Btn icon="layout4" label="四格" on={layout === 4} onClick={() => (ui.layout.value = 4)} />
+              <Btn icon="layout1" label="單一" title="只留目前窗格" onClick={() => applyPreset('one')} />
+              <Btn icon="layout2" label="左右" onClick={() => applyPreset('two')} />
+              <Btn icon="layout3" label="三格" title="左邊大窗格、右邊上下兩格" onClick={() => applyPreset('three')} />
+              <Btn icon="layout4" label="四格" onClick={() => applyPreset('four')} />
+              <Btn icon="maximize" label={maxed ? '還原' : '最大化'} on={maxed} title="目前窗格最大化／還原 (Ctrl+Space)" onClick={() => toggleMaximize()} />
+              <div class="hint" style={{ maxWidth: 190, whiteSpace: 'normal', lineHeight: 1.5, padding: '2px 6px' }}>
+                拖曳窗格邊界調整大小；從窗格角落往內拖＝分割，拖進相鄰窗格＝合併。
+              </div>
             </Group>
             <Group title="顯示">
               <Btn icon="solid" label="實體" on={mode === 'solid'} onClick={() => (ui.displayMode.value = 'solid')} />

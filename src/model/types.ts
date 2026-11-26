@@ -1,3 +1,4 @@
+import type { LayoutNode } from './layout';
 import type { Material } from '../catalog/materials';
 import type { V3 } from '../geom/vec';
 
@@ -207,6 +208,8 @@ export interface Project {
   /** 斷面對照表（圖面編號 → 斷面），辨識梁柱時使用 */
   schedule: ScheduleRow[];
   customMaterials: Material[];
+  /** 視圖窗格版面（分割、大小、各窗格顯示的視圖），不進 Undo */
+  layout?: LayoutNode;
 }
 
 export interface ScheduleRow {

@@ -4,17 +4,13 @@ import { blobToProject, loadLocal, pickFile, saveLocal, saveProjectFile } from '
 import { sampleProject } from '../model/sample';
 import { store } from '../model/store';
 import type { Project } from '../model/types';
-import { toast, ui } from './ui';
+import { initLayout } from './panes';
+import { toast } from './ui';
 
 /** 載入專案並設定預設窗格（左：3D、右：第一個平面） */
 export function openProject(p: Project) {
   if (!p.views.length) p.views = syncViews(p);
-  const v3 = p.views.find((v) => v.kind === '3d');
-  const sortedPlans = p.views.filter((v) => v.kind === 'plan');
-  const plan2 = sortedPlans[1] ?? sortedPlans[0];
-  const elev = p.views.filter((v) => v.kind === 'elevation');
-  ui.paneViews.value = [v3?.id ?? p.views[0].id, plan2?.id ?? p.views[0].id, elev[0]?.id ?? p.views[0].id, elev[elev.length - 1]?.id ?? p.views[0].id];
-  ui.activePane.value = 0;
+  initLayout(p);
   store.load(p);
   void saveLocal(p);
 }

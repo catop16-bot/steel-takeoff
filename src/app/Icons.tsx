@@ -211,6 +211,17 @@ export const Icon: Record<string, () => JSX.Element> = {
       <path d="M12 4v16" />
     </S>
   ),
+  layout3: () => (
+    <S>
+      <rect x="3" y="4" width="18" height="16" rx="1.5" />
+      <path d="M13 4v16M13 12h8" />
+    </S>
+  ),
+  maximize: () => (
+    <S>
+      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+    </S>
+  ),
   layout4: () => (
     <S>
       <rect x="3" y="4" width="18" height="16" rx="1.5" />

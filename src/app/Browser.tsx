@@ -1,4 +1,5 @@
 import { useSignal } from '@preact/signals';
+import { showViewIn, shownViewIds } from './panes';
 import type { JSX } from 'preact';
 import { store } from '../model/store';
 import { MEMBER_TYPES, MEMBER_TYPE_LABEL, type ViewDef } from '../model/types';
@@ -6,7 +7,6 @@ import { fmtElev } from '../view3d/overlay';
 import { targetLabel } from '../drawing/placement';
 import { importDrawingFlow } from './drawingFlows';
 import { sortedViews } from '../model/ops';
-import { app } from './core';
 import { ui } from './ui';
 
 function Section(props: { title: string; extra?: JSX.Element; open?: boolean; children: JSX.Element | JSX.Element[] | null }) {
@@ -24,16 +24,13 @@ function Section(props: { title: string; extra?: JSX.Element; open?: boolean; ch
 }
 
 export function showView(v: ViewDef) {
-  const ids = [...ui.paneViews.peek()];
-  ids[ui.activePane.peek()] = v.id;
-  ui.paneViews.value = ids;
-  app.viewer?.bindPanes();
+  showViewIn(v.id);
 }
 
 export function Browser() {
   const p = store.project.value;
   const sel = store.selection.value;
-  const shown = new Set(ui.paneViews.value.slice(0, ui.layout.value));
+  const shown = shownViewIds();
   const levels = [...p.levels].sort((a, b) => b.elevation - a.elevation);
   const sv = sortedViews(p);
   const views3d = sv.filter((v) => v.kind === '3d');

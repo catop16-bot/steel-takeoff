@@ -4,6 +4,7 @@ import { addScaled, dot, type V3 } from '../geom/vec';
 import { store, type Change } from '../model/store';
 import type { Member, Project, ViewDef } from '../model/types';
 import { ui } from '../app/ui';
+import { findPane, leaves } from '../model/layout';
 import { COLORS } from './colors';
 import { DrawingLayer } from './drawings';
 import { MemberLayer, obbCorners, type MemberGeom } from './members';
@@ -26,7 +27,8 @@ export interface PointerHandler {
 }
 
 export class Pane {
-  index: number;
+  /** 版面樹中的窗格 id */
+  id: string;
   el: HTMLElement;
   vs: ViewState | null = null;
   overlay: ViewOverlay | null = null;
@@ -35,8 +37,8 @@ export class Pane {
   rubberEl: HTMLDivElement;
   labelPool: HTMLDivElement[] = [];
 
-  constructor(index: number, el: HTMLElement) {
-    this.index = index;
+  constructor(id: string, el: HTMLElement) {
+    this.id = id;
     this.el = el;
     this.labelsEl = div('pane-labels');
     this.markerEl = div('snap-marker');
@@ -68,7 +70,7 @@ export class Viewer {
   /** 選取構件的參考線與端點把手 */
   private handles = new THREE.Group();
   private light = new THREE.DirectionalLight(0xffffff, 1.6);
-  private panes: Pane[] = [];
+  private panes = new Map<string, Pane>();
   private container: HTMLElement | null = null;
   private canvas: HTMLCanvasElement;
   private resizeObs = new ResizeObserver(() => this.requestRender());
@@ -131,7 +133,7 @@ export class Viewer {
       this.drawings.sync(p);
       for (const vs of this.views.values()) this.disposeOverlayFor(vs);
       this.views.clear();
-      for (const pane of this.panes) {
+      for (const pane of this.panes.values()) {
         pane.vs = null;
         pane.overlay = null;
       }
@@ -153,7 +155,7 @@ export class Viewer {
           vs.def = def;
           vs.sync(p);
         }
-        for (const pane of this.panes) this.rebuildOverlay(pane);
+        for (const pane of this.panes.values()) this.rebuildOverlay(pane);
         this.bindPanes();
       }
     }
@@ -162,7 +164,7 @@ export class Viewer {
   }
 
   private disposeOverlayFor(vs: ViewState) {
-    for (const pane of this.panes) {
+    for (const pane of this.panes.values()) {
       if (pane.vs === vs && pane.overlay) {
         this.scene.remove(pane.overlay.group);
         disposeGroup(pane.overlay.group);
@@ -182,38 +184,47 @@ export class Viewer {
 
   // ---------- 窗格 ----------
 
-  /** Preact 掛上或卸下窗格元素 */
-  setPaneElement(i: number, el: HTMLElement | null) {
-    const old = this.panes[i];
+  /** Preact 掛上窗格元素 */
+  attachPane(id: string, el: HTMLElement) {
+    const old = this.panes.get(id);
     if (old && old.el === el) return;
-    if (old) {
-      old.labelsEl.remove();
-      old.markerEl.remove();
-      old.rubberEl.remove();
-      if (old.overlay) {
-        this.scene.remove(old.overlay.group);
-        disposeGroup(old.overlay.group);
-      }
-    }
-    if (!el) {
-      delete this.panes[i];
-      this.requestRender();
-      return;
-    }
-    const pane = new Pane(i, el);
-    this.panes[i] = pane;
+    if (old) this.dropPane(old);
+    const pane = new Pane(id, el);
+    this.panes.set(id, pane);
+    this.resizeObs.observe(el);
     this.attachEvents(pane);
     this.bindPanes();
     this.requestRender();
   }
 
-  /** 依 ui.paneViews 綁定各窗格的視圖 */
+  /** Preact 卸下窗格元素（只在仍是同一個元素時移除，避免重新掛載時誤刪） */
+  detachPane(id: string, el: HTMLElement | null) {
+    const old = this.panes.get(id);
+    if (!old || (el && old.el !== el)) return;
+    this.dropPane(old);
+    this.panes.delete(id);
+    this.requestRender();
+  }
+
+  private dropPane(old: Pane) {
+    old.labelsEl.remove();
+    old.markerEl.remove();
+    old.rubberEl.remove();
+    this.resizeObs.unobserve(old.el);
+    if (old.overlay) {
+      this.scene.remove(old.overlay.group);
+      disposeGroup(old.overlay.group);
+      old.overlay = null;
+    }
+    if (this.drag?.pane === old) this.drag = null;
+  }
+
+  /** 依版面樹綁定各窗格的視圖 */
   bindPanes() {
     const p = store.p;
-    const ids = ui.paneViews.peek();
-    for (const pane of this.panes) {
-      if (!pane) continue;
-      const def = p.views.find((v) => v.id === ids[pane.index]) ?? p.views[0];
+    const tree = ui.layout.peek();
+    for (const pane of this.panes.values()) {
+      const def = p.views.find((v) => v.id === findPane(tree, pane.id)?.view) ?? p.views[0];
       if (!def) continue;
       const vs = this.viewState(def);
       if (pane.vs !== vs) {
@@ -243,11 +254,13 @@ export class Viewer {
   }
 
   activePane(): Pane | undefined {
-    return this.panes[ui.activePane.peek()] ?? this.panes.find(Boolean);
+    return this.panes.get(ui.activePane.peek()) ?? this.allPanes()[0];
   }
 
+  /** 依版面順序（左上到右下）列出目前掛著的窗格 */
   allPanes(): Pane[] {
-    return this.panes.filter(Boolean);
+    const order = leaves(ui.layout.peek()).map((l) => l.id);
+    return [...this.panes.values()].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   }
 
   fitAll(pane = this.activePane()) {
@@ -288,6 +301,9 @@ export class Viewer {
     const el = pane.el;
     const pos = (e: MouseEvent) => {
       const r = el.getBoundingClientRect();
+      // 同一個視圖可能同時開在大小不同的窗格，事件前先對齊這個窗格的尺寸
+      const vs = pane.vs;
+      if (vs && r.width > 2 && (Math.abs(vs.width - r.width) > 0.5 || Math.abs(vs.height - r.height) > 0.5)) vs.setSize(r.width, r.height);
       return [e.clientX - r.left, e.clientY - r.top] as const;
     };
     const send = (type: PaneEvent['type'], e: MouseEvent) => {
@@ -296,7 +312,7 @@ export class Viewer {
     };
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('pointerdown', (e) => {
-      if (ui.activePane.peek() !== pane.index) ui.activePane.value = pane.index;
+      if (ui.activePane.peek() !== pane.id) ui.activePane.value = pane.id;
       const [px, py] = pos(e);
       const vs = pane.vs;
       if (!vs) return;
@@ -565,7 +581,7 @@ export class Viewer {
     rd.setClearColor(0xc9d2dc, 1);
     rd.clear();
     rd.setScissorTest(true);
-    for (const pane of this.panes) {
+    for (const pane of this.panes.values()) {
       if (!pane?.vs || !pane.overlay) continue;
       const pr = pane.el.getBoundingClientRect();
       const x = pr.left - r.left;
@@ -585,7 +601,7 @@ export class Viewer {
       rd.clear();
       rd.clippingPlanes = vs.clip;
       this.drawings.setPass(vs.is3d);
-      for (const p of this.panes) if (p?.overlay) p.overlay.group.visible = p === pane;
+      for (const p of this.panes.values()) if (p.overlay) p.overlay.group.visible = p === pane;
       // 頭燈：跟著相機方向，略偏左上
       const eye = vs.eyeDir();
       const up = vs.screenUp();

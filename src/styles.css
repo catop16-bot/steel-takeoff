@@ -397,21 +397,143 @@ button.danger {
 .panes {
   position: absolute;
   inset: 0;
-  display: grid;
-  gap: 3px;
+  display: flex;
   z-index: 1;
 }
 
-.panes.l1 {
-  grid-template: 1fr / 1fr;
+/* 版面樹：split 依方向排列 cell，cell 之間是可拖曳的 divider */
+.split {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
-.panes.l2 {
-  grid-template: 1fr / 1fr 1fr;
+.split.row {
+  flex-direction: row;
 }
 
-.panes.l4 {
-  grid-template: 1fr 1fr / 1fr 1fr;
+.split.col {
+  flex-direction: column;
+}
+
+.cell {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panes > .pane,
+.panes > .split,
+.cell > .pane,
+.cell > .split {
+  flex: 1;
+}
+
+.divider {
+  flex: 0 0 5px;
+  position: relative;
+  z-index: 3;
+  background: #c9d2dc;
+  touch-action: none;
+}
+
+.split.row > .divider {
+  cursor: col-resize;
+}
+
+.split.col > .divider {
+  cursor: row-resize;
+}
+
+.divider:hover,
+.divider.drag {
+  background: #8fb4e6;
+}
+
+/* 窗格角落：往內拖分割、拖進相鄰窗格合併 */
+.pane .corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  z-index: 4;
+  cursor: crosshair;
+  touch-action: none;
+  opacity: 0.55;
+}
+
+.pane .corner:hover {
+  opacity: 1;
+}
+
+.pane .corner.tl {
+  left: 0;
+  top: 27px;
+  background: linear-gradient(135deg, rgba(43, 58, 74, 0.45) 0 32%, transparent 32%);
+}
+
+.pane .corner.tr {
+  right: 0;
+  top: 27px;
+  background: linear-gradient(225deg, rgba(43, 58, 74, 0.45) 0 32%, transparent 32%);
+}
+
+.pane .corner.bl {
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(43, 58, 74, 0.45) 0 32%, transparent 32%);
+}
+
+.pane .corner.br {
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(315deg, rgba(43, 58, 74, 0.45) 0 32%, transparent 32%);
+}
+
+.layout-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.layout-overlay .split-line {
+  position: absolute;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.layout-overlay .split-line.bad {
+  background: var(--danger);
+}
+
+.layout-overlay .join-box {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 42, 0.45);
+  color: #fff;
+  font-size: 13px;
+}
+
+.layout-overlay .join-box.swap {
+  background: rgba(30, 111, 217, 0.35);
+}
+
+.layout-overlay .join-box.bad {
+  background: rgba(217, 56, 56, 0.3);
+}
+
+.layout-overlay .join-box span {
+  background: rgba(20, 30, 42, 0.75);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.edge-menu {
+  position: fixed;
+  z-index: 300;
 }
 
 .pane {
@@ -421,6 +543,8 @@ button.danger {
   min-width: 0;
   min-height: 0;
   outline: 1px solid #aeb9c5;
+  /* 標題列依窗格寬度隱藏次要項目 */
+  container-type: inline-size;
 }
 
 .pane.active {
@@ -439,10 +563,17 @@ button.danger {
   font-size: 12px;
 }
 
+.pane-head {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .pane-head select {
   padding: 1px 4px;
   font-size: 12px;
   max-width: 200px;
+  min-width: 56px;
+  flex: 0 1 auto;
 }
 
 .pane-head .kind {
@@ -457,6 +588,44 @@ button.danger {
   padding: 0 6px;
   font-size: 11px;
   height: 20px;
+  flex: none;
+  white-space: nowrap;
+}
+
+@container (max-width: 360px) {
+  .pane-head .kind {
+    display: none;
+  }
+}
+
+@container (max-width: 290px) {
+  .pane-head .txt {
+    display: none;
+  }
+}
+
+.pane-head .pane-tools {
+  display: flex;
+  gap: 1px;
+  margin-left: 2px;
+}
+
+.pane-head button.ico {
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  border-color: transparent;
+  background: transparent;
+  color: #4b5866;
+}
+
+.pane-head button.ico:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pane-head button.ico.on {
+  color: var(--accent);
 }
 
 .pane-body {

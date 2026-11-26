@@ -166,8 +166,12 @@ export class ViewState {
   }
 
   setSize(w: number, h: number) {
+    const nh = Math.max(1, h);
+    // 正交視圖改變窗格大小時保持比例尺（每像素的 mm 不變），只露出更多或更少範圍，
+    // 不會因為窗格變高就整個放大（同 CAD／Tekla）
+    if (this.cam.ortho && this.height > 1) this.cam.distance *= nh / this.height;
     this.width = Math.max(1, w);
-    this.height = Math.max(1, h);
+    this.height = nh;
     this.updateCamera();
   }
 
