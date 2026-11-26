@@ -9,6 +9,7 @@ import { Icon } from './Icons';
 import { ui, toast, type ToolId } from './ui';
 import { installApp, pwa } from './pwa';
 import { applyPreset, toggleMaximize } from './panes';
+import { chrome, LIMITS, patchChrome, resetChrome, saveChrome, toggleRibbon } from './chrome';
 import { exportCsv, exportExcel, openPrint, runNumbering } from '../report/actions';
 import { newProjectFlow, openFileFlow, saveFileFlow, loadSampleFlow } from './projectFlows';
 import { importDrawingFlow } from './drawingFlows';
@@ -91,8 +92,20 @@ export function Ribbon() {
   const p = store.project.value;
   const mode = ui.displayMode.value;
   const maxed = !!ui.maximized.value;
+  const c = chrome.value;
+  /** 工具列收合時，點頁籤暫時展開（像 Office 的功能區） */
+  const peek = useSignal(false);
+  const showBody = c.ribbonOpen || peek.value;
+  useEffect(() => {
+    if (!peek.value) return;
+    const h = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.ribbon')) peek.value = false;
+    };
+    window.addEventListener('mousedown', h);
+    return () => window.removeEventListener('mousedown', h);
+  }, [peek.value]);
   return (
-    <div class="ribbon">
+    <div class={`ribbon${c.ribbonOpen ? '' : ' collapsed'}`}>
       <div class="ribbon-top">
         <div class="brand">
           <svg width="18" height="18" viewBox="0 0 32 32">
@@ -113,7 +126,19 @@ export function Ribbon() {
             ['report', '報表'],
           ] as [Tab, string][]
         ).map(([k, label]) => (
-          <button key={k} class={`ribbon-tab${tab.value === k ? ' on' : ''}`} onClick={() => (tab.value = k)}>
+          <button
+            key={k}
+            class={`ribbon-tab${tab.value === k && showBody ? ' on' : ''}`}
+            title={c.ribbonOpen ? '雙擊收合工具列' : '點一下暫時展開工具列，雙擊固定展開'}
+            onClick={() => {
+              if (!c.ribbonOpen) peek.value = !(peek.value && tab.value === k);
+              tab.value = k;
+            }}
+            onDblClick={() => {
+              peek.value = false;
+              toggleRibbon();
+            }}
+          >
             {label}
           </button>
         ))}
@@ -132,9 +157,38 @@ export function Ribbon() {
         <button class="ribbon-tab" title="重做 (⌘⇧Z)" disabled={!store.canRedo.value} onClick={() => store.redo()}>
           ↷
         </button>
+        <button
+          class="ribbon-tab ribbon-toggle"
+          title={c.ribbonOpen ? '收合工具列（或雙擊頁籤）' : '展開工具列'}
+          onClick={() => {
+            peek.value = false;
+            toggleRibbon();
+          }}
+        >
+          {c.ribbonOpen ? '︿' : '﹀'}
+        </button>
       </div>
       {menu.value && <FileMenu onClose={() => (menu.value = false)} />}
-      <div class="ribbon-body">
+      {showBody && (
+      <div
+        class={`ribbon-body-wrap${c.ribbonOpen ? '' : ' floating'}`}
+        onClick={(e) => {
+          // 暫時展開時，按下指令就收回
+          if (!c.ribbonOpen && (e.target as HTMLElement).closest('button')) peek.value = false;
+        }}
+      >
+      <div
+        class="ribbon-body"
+        style={{ zoom: c.ribbonScale }}
+        onWheel={(e) => {
+          // 工具列比視窗寬時，滾輪直接左右捲動
+          const b = e.currentTarget as HTMLElement;
+          if (b.scrollWidth > b.clientWidth + 1 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            b.scrollLeft += e.deltaY;
+            e.preventDefault();
+          }
+        }}
+      >
         {tab.value === 'steel' && (
           <>
             <Group title="構件">
@@ -270,8 +324,15 @@ export function Ribbon() {
               <Btn icon="layout3" label="三格" title="左邊大窗格、右邊上下兩格" onClick={() => applyPreset('three')} />
               <Btn icon="layout4" label="四格" onClick={() => applyPreset('four')} />
               <Btn icon="maximize" label={maxed ? '還原' : '最大化'} on={maxed} title="目前窗格最大化／還原 (Ctrl+Space)" onClick={() => toggleMaximize()} />
-              <div class="hint" style={{ maxWidth: 190, whiteSpace: 'normal', lineHeight: 1.5, padding: '2px 6px' }}>
-                拖曳窗格邊界調整大小；從窗格角落往內拖＝分割，拖進相鄰窗格＝合併。
+              <div class="hint" style={{ width: 150, whiteSpace: 'normal', lineHeight: 1.5, padding: '2px 6px' }}>
+                拖邊界調整大小；角落往內拖＝分割，拖進鄰格＝合併。
+              </div>
+            </Group>
+            <Group title="介面">
+              <div class="rcol">
+                <Small label="左側欄（T）" on={c.leftOpen} title="專案瀏覽：拖曳邊界調整寬度" onClick={() => patchChrome({ leftOpen: !c.leftOpen })} />
+                <Small label="右側欄（N）" on={c.rightOpen} title="屬性面板：拖曳邊界調整寬度" onClick={() => patchChrome({ rightOpen: !c.rightOpen })} />
+                <Small label="重設介面大小" title="側欄寬度與工具列大小恢復預設" onClick={resetChrome} />
               </div>
             </Group>
             <Group title="顯示">
@@ -327,6 +388,53 @@ export function Ribbon() {
           </>
         )}
       </div>
+      </div>
+      )}
+      {!peek.value && <RibbonGrip />}
     </div>
+  );
+}
+
+/** 上次量到的工具列內容高度（縮放 1 時），收合後往下拖展開時用 */
+let baseBodyHeight = 79;
+
+/** 工具列下緣：往下拖放大、往上拖縮小，拖到很扁就收合；雙擊恢復原本大小 */
+function RibbonGrip() {
+  const onDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('drag');
+    const st = chrome.peek();
+    const body = document.querySelector<HTMLElement>('.ribbon-body-wrap:not(.floating) .ribbon-body');
+    if (body) baseBodyHeight = body.getBoundingClientRect().height / st.ribbonScale;
+    const startH = st.ribbonOpen ? baseBodyHeight * st.ribbonScale : 0;
+    const y0 = e.clientY;
+    const [lo, hi] = LIMITS.ribbonScale;
+    const move = (ev: PointerEvent) => {
+      const h = startH + (ev.clientY - y0);
+      const scale = h / baseBodyHeight;
+      if (scale < lo * 0.6) patchChrome({ ribbonOpen: false }, false);
+      else patchChrome({ ribbonOpen: true, ribbonScale: Math.round(Math.min(hi, Math.max(lo, scale)) * 100) / 100 }, false);
+    };
+    const end = () => {
+      el.classList.remove('drag');
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', end);
+      el.removeEventListener('pointercancel', end);
+      saveChrome();
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  };
+  return (
+    <div
+      class="ribbon-grip"
+      title="拖曳調整工具列大小・往上拖到底收合・雙擊恢復原本大小"
+      onPointerDown={onDown}
+      onDblClick={() => patchChrome({ ribbonOpen: true, ribbonScale: 1 })}
+    />
   );
 }

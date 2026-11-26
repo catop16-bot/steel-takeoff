@@ -1,4 +1,6 @@
 import { Browser } from './Browser';
+import { chrome } from './chrome';
+import { PanelSplitter } from './PanelSplitter';
 import { DrawingSettings, ImportDialog } from './dialogs/DrawingDialogs';
 import { RecogHost } from './dialogs/RecognizeDialogs';
 import { ArrayDialog, DuplicatesDialog } from './dialogs/EditDialogs';
@@ -33,6 +35,7 @@ function Dialogs() {
 }
 
 export function App() {
+  const c = chrome.value;
   return (
     <div
       class="app"
@@ -48,9 +51,15 @@ export function App() {
     >
       <Ribbon />
       <div class="main">
-        <Browser />
+        <div class="side-wrap" style={{ width: c.left, display: c.leftOpen ? undefined : 'none' }}>
+          <Browser />
+        </div>
+        <PanelSplitter side="left" />
         <ViewsArea />
-        <PropertyPanel />
+        <PanelSplitter side="right" />
+        <div class="side-wrap" style={{ width: c.right, display: c.rightOpen ? undefined : 'none' }}>
+          <PropertyPanel />
+        </div>
       </div>
       <StatusBar />
       <Dialogs />
